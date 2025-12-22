@@ -31,6 +31,7 @@ export default {
         animation: false,
         timeline: false,
         baseLayerPicker: false, // 关闭默认底图
+        orderIndependentTranslucency:false,
         terrainProvider: Cesium.EllipsoidTerrainProvider() // 暂时没有高程，可改成createWorldTerrain()
       })
 
@@ -51,7 +52,7 @@ export default {
       //   token: this.tdtKey
       // })
       var labelImagery = new Cesium.TiandituImageryProvider({
-            // mapStyle: Cesium.TiandituMapsStyle.CIA_C,//天地图全球中文注记服务
+            mapStyle: Cesium.TiandituMapsStyle.VEC_C,//天地图全球中文注记服务
             token: this.tdtKey //由天地图官网申请的密钥
         });
       this.viewer.imageryLayers.addImageryProvider(labelImagery)
