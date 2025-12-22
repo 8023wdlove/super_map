@@ -2,7 +2,7 @@
  * @Author: 8023wdlove 1096186073@qq.com
  * @Date: 2025-12-20 16:50:38
  * @LastEditors: 8023wdlove 1096186073@qq.com
- * @LastEditTime: 2025-12-20 17:21:47
+ * @LastEditTime: 2025-12-22 09:11:21
  * @FilePath: \super_map\src\components\CimScence.vue
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
 -->
@@ -53,33 +53,6 @@ export default {
       // 防止模型被地形遮挡
       this.viewer.scene.globe.depthTestAgainstTerrain = true
     },
-
-//     // 加载超图场景
-//     loadScene() {
-//   const sceneUrl =
-//     'http://61.156.58.251:8195/portalproxy/040a2c991be35feb/iserver/services/3D-local3DCache-zhigu/rest/realspace'
-
-//   // ✅ 正确写法
-//   this.viewer.scene.open(sceneUrl)
-
-//   // 监听图层加载
-//   this.viewer.scene.layers.layerAddedEvent.addEventListener(layer => {
-//     console.log('✅ 场景图层加载完成:', layer.name)
-//   })
-//   this.viewer.scene.camera.changed.addEventListener(() => {
-//   const camera = this.viewer.scene.camera
-//   const position = window.Cesium.Cartographic.fromCartesian(camera.position)
-
-//   console.log('📷 相机参数：', {
-//     lng: window.Cesium.Math.toDegrees(position.longitude),
-//     lat: window.Cesium.Math.toDegrees(position.latitude),
-//     height: position.height,
-//     heading: window.Cesium.Math.toDegrees(camera.heading),
-//     pitch: window.Cesium.Math.toDegrees(camera.pitch),
-//     roll: window.Cesium.Math.toDegrees(camera.roll)
-//   })
-// })
-// }
 loadScene() {
   const sceneUrl =
     'http://61.156.58.251:8195/portalproxy/040a2c991be35feb/iserver/services/3D-local3DCache-zhigu/rest/realspace'
