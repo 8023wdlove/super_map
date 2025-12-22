@@ -1,8 +1,16 @@
+<!--
+ * @Author: 8023wdlove 1096186073@qq.com
+ * @Date: 2025-12-22 10:37:06
+ * @LastEditors: 8023wdlove 1096186073@qq.com
+ * @LastEditTime: 2025-12-22 17:25:30
+ * @FilePath: \super_map\src\components\CimScence3.vue
+ * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
+-->
 <template>
   <div class="cim-container">
     <!-- 工具栏 -->
     <div class="toolbar">
-      <!-- <button
+      <button
         :class="{ active: mode === 'view' }"
         @click="switchMode('view')"
       >
@@ -13,7 +21,7 @@
         @click="switchMode('mark')"
       >
         标注模式
-      </button> -->
+      </button>
     </div>
 
     <!-- Cesium 容器 -->
@@ -45,7 +53,7 @@ export default {
   mounted() {
     this.initViewer()
     this.loadBuildings()
-    // this.switchMode('view')
+    this.switchMode('view')
   },
 
   beforeDestroy() {
@@ -61,10 +69,9 @@ export default {
 
     initViewer() {
       this.viewer = new Cesium.Viewer(this.$refs.cesiumContainer, {
-        animation: true,
+        animation: false,
         timeline: false,
-        baseLayerPicker: true,
-        globe: false
+        baseLayerPicker: false
       })
 
       // ⚠️ 这里加载你的超图场景
@@ -86,9 +93,7 @@ export default {
             pitch: Cesium.Math.toRadians(-34.44299809647591),
             roll: 0
           }
-        })
-          this.addBuildingLabels()
-        this.switchMode('view')
+      })
       })
     },
 
@@ -102,7 +107,7 @@ export default {
     /* ================= 模式切换 ================= */
 
     switchMode(target) {
-      // if (this.mode === target) return
+      if (this.mode === target) return
 
       this.clearAllHandlers()
       this.clearTemp()
@@ -113,9 +118,9 @@ export default {
         this.enablePickMode()
       }
 
-      // if (target === 'mark') {
-      //   this.enableMarkMode()
-      // }
+      if (target === 'mark') {
+        this.enableMarkMode()
+      }
     },
 
     clearAllHandlers() {
@@ -148,7 +153,7 @@ export default {
         console.log('click position:', click.position)
         const cartesian = this.viewer.scene.pickPosition(click.position)
         if (!cartesian) return
-        console.log('click cartesian:', cartesian)
+
         const carto = Cesium.Cartographic.fromCartesian(cartesian)
         const lng = Cesium.Math.toDegrees(carto.longitude)
         const lat = Cesium.Math.toDegrees(carto.latitude)
@@ -260,7 +265,6 @@ export default {
     handleBuildingPick(lng, lat) {
       for (const building of this.buildings) {
         if (this.isPointInPolygon([lng, lat], building.polygon)) {
-          console.log('✅ 选中楼宇:', building.name)
           this.clipAndFocusBuilding(building)
           return
         }
@@ -405,54 +409,14 @@ getPolygonBoundingSphere(polygon, minHeight = 0, maxHeight = 100) {
   })
 
   return Cesium.BoundingSphere.fromPoints(positions)
-},
-addBuildingLabels() {
-    if (!this.viewer || !this.buildings) return
+}
 
-    this.buildings.forEach(building => {
-      const { polygon, name } = building
 
-      if (!polygon || polygon.length === 0) return
 
-      // 1️⃣ 计算多边形中心
-      let lng = 0, lat = 0
-      polygon.forEach(p => {
-        lng += p[0]
-        lat += p[1]
-      })
-      lng /= polygon.length
-      lat /= polygon.length
 
-      // 2️⃣ 计算包围球半径 + 偏移，用作标签高度
-      const sphere = this.getPolygonBoundingSphere(polygon)
-      const labelHeight = sphere.radius - 35 // 偏移 3 米
-      console.log(`🏢 ${name} 标签高度:`, labelHeight)
-      // 3️⃣ 添加标签
-      this.viewer.entities.add({
-        position: Cesium.Cartesian3.fromDegrees(lng, lat, labelHeight),
-        label: {
-          // text: name,
-          // font: '16px sans-serif',
-          // fillColor: Cesium.Color.YELLOW,
-          // outlineColor: Cesium.Color.BLACK,
-          // outlineWidth: 2,
-          // style: Cesium.LabelStyle.FILL_AND_OUTLINE,
-          // verticalOrigin: Cesium.VerticalOrigin.BOTTOM, // 标签在点上方
-          // heightReference: Cesium.HeightReference.NONE, // 不随地形变化
-          // scaleByDistance: new Cesium.NearFarScalar(100, 1.0, 2000, 0.5) // 缩放优化
-             text: name,
-            font: '30px sans-serif',
-            fillColor: Cesium.Color.RED,          // 红色填充，更明显
-            outlineColor: Cesium.Color.BLACK,     // 黑色描边
-            outlineWidth: 2,
-            style: Cesium.LabelStyle.FILL_AND_OUTLINE,
-            verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
-            heightReference: Cesium.HeightReference.NONE,
-            scaleByDistance: new Cesium.NearFarScalar(100, 1.0, 2000, 0.5)
-        }
-      })
-    })
-  }
+
+
+
 
   }
 }
