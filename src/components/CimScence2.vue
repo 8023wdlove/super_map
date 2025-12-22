@@ -2,7 +2,7 @@
   <div class="cim-container">
     <!-- 工具栏 -->
     <div class="toolbar">
-      <button
+      <!-- <button
         :class="{ active: mode === 'view' }"
         @click="switchMode('view')"
       >
@@ -13,7 +13,7 @@
         @click="switchMode('mark')"
       >
         标注模式
-      </button>
+      </button> -->
     </div>
 
     <!-- Cesium 容器 -->
@@ -85,7 +85,8 @@ export default {
             pitch: Cesium.Math.toRadians(-34.44299809647591),
             roll: 0
           }
-      })
+        })
+        this.switchMode('view')
       })
     },
 
@@ -99,7 +100,7 @@ export default {
     /* ================= 模式切换 ================= */
 
     switchMode(target) {
-      if (this.mode === target) return
+      // if (this.mode === target) return
 
       this.clearAllHandlers()
       this.clearTemp()
@@ -110,9 +111,9 @@ export default {
         this.enablePickMode()
       }
 
-      if (target === 'mark') {
-        this.enableMarkMode()
-      }
+      // if (target === 'mark') {
+      //   this.enableMarkMode()
+      // }
     },
 
     clearAllHandlers() {
