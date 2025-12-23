@@ -30,7 +30,7 @@ export default {
       this.viewer = new Cesium.Viewer(this.$refs.cesiumContainer, {
         animation: false,
         timeline: false,
-        baseLayerPicker: false, // 关闭默认底图
+        baseLayerPicker: false, // 底图选择器
         orderIndependentTranslucency:false,
         terrainProvider: Cesium.EllipsoidTerrainProvider() // 暂时没有高程，可改成createWorldTerrain()
       })
@@ -38,25 +38,17 @@ export default {
       // 2️⃣ 移除默认底图
       this.viewer.imageryLayers.removeAll()
 
-      // 3️⃣ 添加天地图WMTS影像底图
-      // const tdtLayer = new Cesium.WebMapTileServiceImageryProvider({
-      //   url: 'https://t0.tianditu.gov.cn/img_w/wmts',
-      //   layer: 'img',
-      //   style: 'default',
-      //   format: 'tiles',
-      //   tileMatrixSetID: 'c',
-      //   maximumLevel: 18,
-      //   subdomains: ['0','1','2','3','4','5','6','7'],
-      //   credit: '天地图',
-      //   tilingScheme: new Cesium.WebMercatorTilingScheme(),
-      //   token: this.tdtKey
-      // })
       var labelImagery = new Cesium.TiandituImageryProvider({
-            mapStyle: Cesium.TiandituMapsStyle.VEC_C,//天地图全球中文注记服务
+            mapStyle: Cesium.TiandituMapsStyle.IMG_C,//天地图全球中文注记服务
             token: this.tdtKey //由天地图官网申请的密钥
         });
+      // 注记
+      const tdtCia = new Cesium.TiandituImageryProvider({
+        mapStyle: Cesium.TiandituMapsStyle.CIA_C,
+        token: this.tdtKey
+      })
       this.viewer.imageryLayers.addImageryProvider(labelImagery)
-
+      this.viewer.imageryLayers.addImageryProvider(tdtCia)
       // 4️⃣ 加载SuperMap场景（S3M / 倾斜摄影）
       this.viewer.scene.globe.depthTestAgainstTerrain = true;
       this.viewer.scene.open(this.sceneUrl, undefined, { autoSetView: false })

@@ -2,20 +2,7 @@
   <div class="cim-container">
     <!-- 工具栏 -->
     <div class="toolbar">
-      <!-- <button
-        :class="{ active: mode === 'view' }"
-        @click="switchMode('view')"
-      >
-        浏览模式
-      </button>
-      <button
-        :class="{ active: mode === 'mark' }"
-        @click="switchMode('mark')"
-      >
-        标注模式
-      </button> -->
     </div>
-
     <!-- Cesium 容器 -->
     <div ref="cesiumContainer" class="viewer"></div>
   </div>
@@ -38,7 +25,9 @@ export default {
       drawPoints: [],
       drawHandler: null,
       pickHandler: null,
-      tempEntity: null
+      tempEntity: null,
+      sceneUrl: 'http://61.156.58.251:8195/portalproxy/040a2c991be35feb/iserver/services/3D-local3DCache-zhigu/rest/realspace', // 替换成你的S3M或倾斜摄影服务
+      tdtKey: '5f411a510fbf7d76f07aba535b0ccb70' // 替换成你申请的天地图Key
     }
   },
 
@@ -60,38 +49,51 @@ export default {
     /* ================= 初始化 ================= */
 
     initViewer() {
+            // 1️⃣ 初始化Cesium Viewer
       this.viewer = new Cesium.Viewer(this.$refs.cesiumContainer, {
-        animation: true,
+        animation: false,
         timeline: false,
-        baseLayerPicker: true,
-        globe: false
+        baseLayerPicker: true, // 底图选择器
+        orderIndependentTranslucency:false,
+        terrainProvider: Cesium.EllipsoidTerrainProvider() // 暂时没有高程，可改成createWorldTerrain()
       })
 
-      // ⚠️ 这里加载你的超图场景
-      const sceneUrl =
-        'http://61.156.58.251:8195/portalproxy/040a2c991be35feb/iserver/services/3D-local3DCache-zhigu/rest/realspace'
+      // 2️⃣ 移除默认底图
+      this.viewer.imageryLayers.removeAll()
 
-      this.viewer.scene.open(sceneUrl, undefined, {
-        autoSetView: false
-      }).then(() => {
-        console.log('✅ 场景加载完成')
-        this.viewer.scene.camera.setView({
-          destination: Cesium.Cartesian3.fromDegrees(
-            120.6993527020927,
-            30.225959572531785,
-            244.1596275128751
-          ),
-          orientation: {
-            heading: Cesium.Math.toRadians(20.109777932369102),
-            pitch: Cesium.Math.toRadians(-34.44299809647591),
-            roll: 0
-          }
-        })
-          this.addBuildingLabels()
+      var labelImagery = new Cesium.TiandituImageryProvider({
+            mapStyle: Cesium.TiandituMapsStyle.IMG_C,//天地图全球中文注记服务
+            token: this.tdtKey //由天地图官网申请的密钥
+        });
+      // 注记
+      const tdtCia = new Cesium.TiandituImageryProvider({
+        mapStyle: Cesium.TiandituMapsStyle.CIA_C,
+        token: this.tdtKey
+      })
+      this.viewer.imageryLayers.addImageryProvider(labelImagery)
+      this.viewer.imageryLayers.addImageryProvider(tdtCia)
+      // 4️⃣ 加载SuperMap场景（S3M / 倾斜摄影）
+      this.viewer.scene.globe.depthTestAgainstTerrain = true;
+      this.viewer.scene.open(this.sceneUrl, undefined, { autoSetView: false })
+        .then(() => {
+          console.log('✅ 场景加载完成')
+          // 5️⃣ 设置初始相机位置
+          this.viewer.scene.camera.setView({
+            destination: Cesium.Cartesian3.fromDegrees(
+              120.6993527020927, // 经度
+              30.225959572531785, // 纬度
+              244.1596275128751   // 高度
+            ),
+            orientation: {
+              heading: Cesium.Math.toRadians(20),
+              pitch: Cesium.Math.toRadians(-34),
+              roll: 0
+            }
+          })
+        this.addBuildingLabels()
         this.switchMode('view')
-      })
+        })
     },
-
     loadBuildings() {
       const cache = localStorage.getItem('BUILDINGS')
       if (cache) {
@@ -103,19 +105,12 @@ export default {
 
     switchMode(target) {
       // if (this.mode === target) return
-
       this.clearAllHandlers()
       this.clearTemp()
-
       this.mode = target
-
       if (target === 'view') {
         this.enablePickMode()
       }
-
-      // if (target === 'mark') {
-      //   this.enableMarkMode()
-      // }
     },
 
     clearAllHandlers() {
@@ -143,7 +138,6 @@ export default {
       this.pickHandler = new Cesium.ScreenSpaceEventHandler(
         this.viewer.scene.canvas
       )
-
       this.pickHandler.setInputAction(click => {
         console.log('click position:', click.position)
         const cartesian = this.viewer.scene.pickPosition(click.position)
@@ -156,18 +150,6 @@ export default {
         this.handleBuildingPick(lng, lat)
       }, Cesium.ScreenSpaceEventType.LEFT_CLICK)
     },
-
-    // handleBuildingPick(lng, lat) {
-    //   for (const building of this.buildings) {
-    //     if (this.isPointInPolygon([lng, lat], building.polygon)) {
-    //       console.log('✅ 选中楼宇:', building.name)
-    //       // 这里后面可以接：裁切 / flyTo
-    //       return
-    //     }
-    //   }
-    //   console.log('点在空白处')
-    // },
-
     /* ================= 标注模式 ================= */
 
     enableMarkMode() {
@@ -265,182 +247,62 @@ export default {
           return
         }
       }
-
-    // 点空白 → 还原
-    this.clearClip()
-    this.clearFocusEffect()
     },
-    clipBuilding(building) {
-      const layers = this.viewer.scene.layers
-      // 兜底高度（没有就给一个）
-      const minHeight = building.minHeight ?? 0
-      const maxHeight = building.maxHeight ?? 100
-      console.log('🏢 楼宇高度范围:', minHeight, maxHeight)
-      // 清空之前的裁切
-      // layers.removeAllClipPlanes()
-      for (let i = 0; i < layers.length; i++) {
-        layers.get(i).clippingPlanes = null
-      }
-      // 构造裁切多边形
-      const positions = building.polygon.map(p =>
-        Cesium.Cartesian3.fromDegrees(p[0], p[1])
-      )
-      // 创建裁切面集合
-      const clipPlanes = []
-      for (let i = 0; i < positions.length; i++) {
-        const p1 = positions[i]
-        const p2 = positions[(i + 1) % positions.length]
-        const up = Cesium.Cartesian3.normalize(
-          Cesium.Cartesian3.subtract(p2, p1, new Cesium.Cartesian3()),
-          new Cesium.Cartesian3()
-        )
-        const normal = Cesium.Cartesian3.cross(
-          up,
-          Cesium.Cartesian3.UNIT_Z,
-          new Cesium.Cartesian3()
-        )
-        Cesium.Cartesian3.normalize(normal, normal)
-        clipPlanes.push(
-          new Cesium.ClippingPlane(normal, 0)
-        )
-      }
-      const clippingPlaneCollection = new Cesium.ClippingPlaneCollection({
-        planes: clipPlanes,
-        unionClippingRegions: true,
-        edgeWidth: 1,
-        edgeColor: Cesium.Color.YELLOW
-      })
-      // 应用到所有 S3M 图层
-      for (let i = 0; i < layers.length; i++) {
-        layers.get(i).clippingPlanes = clippingPlaneCollection
-      }
-      console.log('✅ 裁切完成')
-    },
-    // focusBuilding(building) {
-    //   const { polygon, minHeight = 0, maxHeight = 100 } = building
-    //   console.log('🏢 聚焦楼宇:', minHeight, maxHeight)
-    //   // 计算 polygon 中心点
-    //   let lng = 0, lat = 0
-    //   polygon.forEach(p => {
-    //     lng += p[0]
-    //     lat += p[1]
-    //   })
-    //   lng /= polygon.length
-    //   lat /= polygon.length
-
-    //   this.viewer.scene.camera.flyTo({
-    //     destination: Cesium.Cartesian3.fromDegrees(
-    //       lng,
-    //       lat,
-    //       maxHeight * 2.5
-    //     ),
-    //     orientation: {
-    //       heading: Cesium.Math.toRadians(0),
-    //       pitch: Cesium.Math.toRadians(-45),
-    //       roll: 0
-    //     },
-    //     duration: 1.2
-    //   })
-    // },
     focusBuilding(building) {
-  const { polygon, minHeight = 0, maxHeight = 100 } = building
+      const { polygon, minHeight = 0, maxHeight = 150 } = building
       console.log('🏢 聚焦楼宇:', minHeight, maxHeight)
-  const sphere = this.getPolygonBoundingSphere(
-    polygon,
-    minHeight,
-    maxHeight
-  )
-
-  this.viewer.scene.camera.flyToBoundingSphere(
-    sphere,
-    {
-      duration: 1.2,
-      offset: new Cesium.HeadingPitchRange(
-        Cesium.Math.toRadians(0),
-        Cesium.Math.toRadians(-45),
-        sphere.radius * 2.0
+      const sphere = this.getPolygonBoundingSphere(
+        polygon,
+        minHeight,
+        maxHeight
       )
-    }
-  )
-},
-
-
-    applyFocusEffect() {
-      const layers = this.viewer.scene.layers
-      console.log('🏢 应用聚焦效果', layers)
-      for (let i = 0; i < layers.length; i++) {
-        const layer = layers.get(i)
-        // 所有图层先半透明
-        layer.style3D = new Cesium.Cesium3DTileStyle({
-          color: 'color("gray", 0.2)'
-        })
-      }
-    },
-    clearFocusEffect() {
-      const layers = this.viewer.scene.layers
-      for (let i = 0; i < layers.length; i++) {
-        layers.get(i).style3D = null
-      }
+      this.viewer.scene.camera.flyToBoundingSphere(
+        sphere,
+        {
+          duration: 1.2,
+          offset: new Cesium.HeadingPitchRange(
+            Cesium.Math.toRadians(0),
+            Cesium.Math.toRadians(-45),
+            sphere.radius * 2.0
+          )
+        }
+      )
     },
     clipAndFocusBuilding(building) {
-      this.clearClip()
-      this.clipBuilding(building)
-      this.applyFocusEffect(building)
       this.focusBuilding(building)
     },
-    clearClip() {
-      const layers = this.viewer.scene.layers
-      for (let i = 0; i < layers.length; i++) {
-        layers.get(i).clippingPlanes = null
-      }
-    },
-getPolygonBoundingSphere(polygon, minHeight = 0, maxHeight = 100) {
-  const positions = []
-
-  polygon.forEach(([lng, lat]) => {
-    positions.push(
-      Cesium.Cartesian3.fromDegrees(lng, lat, minHeight),
-      Cesium.Cartesian3.fromDegrees(lng, lat, maxHeight)
-    )
-  })
-
-  return Cesium.BoundingSphere.fromPoints(positions)
-},
-addBuildingLabels() {
-    if (!this.viewer || !this.buildings) return
-
-    this.buildings.forEach(building => {
-      const { polygon, name } = building
-
-      if (!polygon || polygon.length === 0) return
-
-      // 1️⃣ 计算多边形中心
-      let lng = 0, lat = 0
-      polygon.forEach(p => {
-        lng += p[0]
-        lat += p[1]
+    getPolygonBoundingSphere(polygon, minHeight = 0, maxHeight = 100) {
+      const positions = []
+      polygon.forEach(([lng, lat]) => {
+        positions.push(
+          Cesium.Cartesian3.fromDegrees(lng, lat, minHeight),
+          Cesium.Cartesian3.fromDegrees(lng, lat, maxHeight)
+        )
       })
-      lng /= polygon.length
-      lat /= polygon.length
-
-      // 2️⃣ 计算包围球半径 + 偏移，用作标签高度
-      const sphere = this.getPolygonBoundingSphere(polygon)
-      const labelHeight = sphere.radius - 35 // 偏移 3 米
-      console.log(`🏢 ${name} 标签高度:`, labelHeight)
-      // 3️⃣ 添加标签
-      this.viewer.entities.add({
-        position: Cesium.Cartesian3.fromDegrees(lng, lat, labelHeight),
-        label: {
-          // text: name,
-          // font: '16px sans-serif',
-          // fillColor: Cesium.Color.YELLOW,
-          // outlineColor: Cesium.Color.BLACK,
-          // outlineWidth: 2,
-          // style: Cesium.LabelStyle.FILL_AND_OUTLINE,
-          // verticalOrigin: Cesium.VerticalOrigin.BOTTOM, // 标签在点上方
-          // heightReference: Cesium.HeightReference.NONE, // 不随地形变化
-          // scaleByDistance: new Cesium.NearFarScalar(100, 1.0, 2000, 0.5) // 缩放优化
-             text: name,
+      return Cesium.BoundingSphere.fromPoints(positions)
+    },
+    addBuildingLabels() {
+      if (!this.viewer || !this.buildings) return
+      this.buildings.forEach(building => {
+        const { polygon, name } = building
+        if (!polygon || polygon.length === 0) return
+        // 1️⃣ 计算多边形中心
+        let lng = 0, lat = 0
+        polygon.forEach(p => {
+          lng += p[0]
+          lat += p[1]
+        })
+        lng /= polygon.length
+        lat /= polygon.length
+        // 2️⃣ 计算包围球半径 + 偏移，用作标签高度
+        const sphere = this.getPolygonBoundingSphere(polygon)
+        const labelHeight = sphere.radius - 35 // 偏移 3 米
+        console.log(`🏢 ${name} 标签高度:`, labelHeight)
+        // 3️⃣ 添加标签
+        this.viewer.entities.add({
+          position: Cesium.Cartesian3.fromDegrees(lng, lat, labelHeight),
+          label: {
+            text: name,
             font: '30px sans-serif',
             fillColor: Cesium.Color.RED,          // 红色填充，更明显
             outlineColor: Cesium.Color.BLACK,     // 黑色描边
@@ -449,11 +311,10 @@ addBuildingLabels() {
             verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
             heightReference: Cesium.HeightReference.NONE,
             scaleByDistance: new Cesium.NearFarScalar(100, 1.0, 2000, 0.5)
-        }
+          }
+        })
       })
-    })
-  }
-
+    }
   }
 }
 /**
